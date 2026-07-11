@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "hen-site-v2",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "/Users/hendagan/קלוד/חן/hen-dagan-site-v2",
+      "port": 3001
+    }
+  ]
+}
