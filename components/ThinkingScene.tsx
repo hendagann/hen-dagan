@@ -6,10 +6,10 @@ import * as THREE from "three";
 
 export type ThinkingStage = { label: string; title: string; text: string };
 
-const COUNT = 850;
 const STAGE_SECONDS = 5; // חמש שניות לכל שלב, לבקשת חן
 
-function buildTargets(): Float32Array[] {
+// מספר החלקיקים מותאם לפי המכשיר (פחות במובייל, לחיסכון בסוללה וחלקות)
+function buildTargets(COUNT: number): Float32Array[] {
   const rng = (seed: number) => {
     let s = seed;
     return () => {
@@ -107,16 +107,16 @@ function buildTargets(): Float32Array[] {
 
 /* החלקיקים רודפים אחרי צורת השלב הנוכחי. השלב מגיע מבחוץ (טיימר),
    כך שהכיתוב מתקדם גם אם הדפדפן מאט את ה WebGL. */
-function Particles({ stage }: { stage: number }) {
+function Particles({ stage, count }: { stage: number; count: number }) {
   const ref = useRef<THREE.Points>(null);
-  const targets = useMemo(buildTargets, []);
+  const targets = useMemo(() => buildTargets(count), [count]);
   const positions = useMemo(() => new Float32Array(targets[0]), [targets]);
 
   const colors = useMemo(() => {
-    const arr = new Float32Array(COUNT * 3);
+    const arr = new Float32Array(count * 3);
     const gold = new THREE.Color("#e2b45a");
     const violet = new THREE.Color("#8b7cf6");
-    for (let i = 0; i < COUNT; i++) {
+    for (let i = 0; i < count; i++) {
       const c = i % 5 === 0 ? gold : violet.clone().lerp(gold, (i % 17) / 34);
       arr[i * 3] = c.r;
       arr[i * 3 + 1] = c.g;
@@ -130,7 +130,7 @@ function Particles({ stage }: { stage: number }) {
     const pos = ref.current!.geometry.attributes.position.array as Float32Array;
     // התקרבות חלקה אל הצורה של השלב הנוכחי
     const k = Math.min(1, delta * 2.2);
-    for (let i = 0; i < COUNT * 3; i++) {
+    for (let i = 0; i < count * 3; i++) {
       pos[i] += (target[i] - pos[i]) * k;
     }
     ref.current!.rotation.y = Math.sin(clock.elapsedTime * 0.12) * 0.12;
@@ -160,8 +160,9 @@ export default function ThinkingScene({ stages }: { stages: ThinkingStage[] }) {
   const [stage, setStage] = useState(0);
   const [cycleKey, setCycleKey] = useState(0); // בחירה ידנית מאפסת את הטיימר
   const [mode, setMode] = useState<"loading" | "3d" | "static">("loading");
-  const [inView, setInView] = useState(true);
-  const wrapRef = useRef<HTMLDivElement>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [visible, setVisible] = useState(false); // האם הסקשן בתצוגה, לצורך השהיית הרינדור
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const selectStage = (i: number) => {
     setStage(i);
@@ -171,8 +172,13 @@ export default function ThinkingScene({ stages }: { stages: ThinkingStage[] }) {
   useEffect(() => {
     const reducedMq = window.matchMedia("(prefers-reduced-motion: reduce)");
     const narrowMq = window.matchMedia("(max-width: 767px)");
-    const weak = (navigator.hardwareConcurrency || 8) <= 3;
-    const update = () => setMode(reducedMq.matches || narrowMq.matches || weak ? "static" : "3d");
+    // אנימציית הנקודות פועלת גם במובייל; סטטי רק אם המשתמש ביקש פחות תנועה
+    // או במכשיר חלש מאוד (שני ליבות או פחות).
+    const weak = (navigator.hardwareConcurrency || 8) <= 2;
+    const update = () => {
+      setIsMobile(narrowMq.matches);
+      setMode(reducedMq.matches || weak ? "static" : "3d");
+    };
     update();
     reducedMq.addEventListener("change", update);
     narrowMq.addEventListener("change", update);
@@ -182,25 +188,37 @@ export default function ThinkingScene({ stages }: { stages: ThinkingStage[] }) {
     };
   }, []);
 
-  useEffect(() => {
-    if (!wrapRef.current) return;
-    const obs = new IntersectionObserver(([e]) => setInView(e.isIntersecting), { threshold: 0.05 });
-    obs.observe(wrapRef.current);
-    return () => obs.disconnect();
-  }, [mode]);
-
-  // קצב השלבים: טיימר עצמאי, לא תלוי ב WebGL. מתקדם רק כשהסקשן נראה.
+  // קצב השלבים: טיימר עצמאי, לא תלוי ב WebGL ולא ב IntersectionObserver
+  // (שהתנהג לא אמין במובייל). מתחלף כל 5 שניות במצב 3D.
   // cycleKey מאתחל את הספירה אחרי בחירה ידנית, כדי שהשלב שנבחר יקבל זמן מלא.
   useEffect(() => {
-    if (mode !== "3d" || !inView) return;
+    if (mode !== "3d") return;
     const id = setInterval(() => {
       setStage((s) => (s + 1) % stages.length);
     }, STAGE_SECONDS * 1000);
     return () => clearInterval(id);
-  }, [mode, inView, stages.length, cycleKey]);
+  }, [mode, stages.length, cycleKey]);
+
+  // מעקב תצוגה אמין (getBoundingClientRect על scroll/resize) כדי להשהות את
+  // רינדור ה WebGL כשהסקשן לא על המסך: חוסך סוללה ומונע גמגום, במיוחד במובייל.
+  useEffect(() => {
+    const check = () => {
+      const el = containerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setVisible(r.top < window.innerHeight + 120 && r.bottom > -120);
+    };
+    check();
+    window.addEventListener("scroll", check, { passive: true });
+    window.addEventListener("resize", check);
+    return () => {
+      window.removeEventListener("scroll", check);
+      window.removeEventListener("resize", check);
+    };
+  }, []);
 
   return (
-    <div ref={wrapRef} className="relative flex flex-col gap-5">
+    <div ref={containerRef} className="relative flex flex-col gap-5">
       {/* ההסבר של השלב הנוכחי: מעל הריבוע, מתחלף כל 10 שניות.
           כל חמשת ההסברים קיימים תמיד ב HTML; ההחלפה ויזואלית בלבד. */}
       {mode !== "static" ? (
@@ -240,9 +258,14 @@ export default function ThinkingScene({ stages }: { stages: ThinkingStage[] }) {
       )}
 
       <div className="h-[340px] sm:h-[420px] rounded-3xl overflow-hidden relative glass glass-refract">
-        {mode === "3d" && inView && (
-          <Canvas dpr={[1, 1.5]} camera={{ position: [0, 0, 10.5], fov: 42 }} gl={{ antialias: false, alpha: true }}>
-            <Particles stage={stage} />
+        {mode === "3d" && (
+          <Canvas
+            frameloop={visible ? "always" : "never"}
+            dpr={[1, isMobile ? 1 : 1.5]}
+            camera={{ position: [0, 0, 10.5], fov: 42 }}
+            gl={{ antialias: false, alpha: true, powerPreference: "high-performance" }}
+          >
+            <Particles stage={stage} count={isMobile ? 420 : 850} />
           </Canvas>
         )}
         {mode === "static" && (
