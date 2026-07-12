@@ -88,6 +88,34 @@ body {
   border-radius: 999px;
 }
 
+/* פאנל התפריט: זכוכית נוזלית בסגנון אפל. בלר חזק (frost) עם גוון כהה מתון,
+   כך שרואים שיש תוכן מאחור אבל הטקסט נשאר קריא. מוגדר אחרי .glass כדי לגבור עליו. */
+.menu-panel {
+  position: relative;
+  background: rgb(13 16 27 / 0.55);
+  backdrop-filter: blur(30px) saturate(1.8);
+  -webkit-backdrop-filter: blur(30px) saturate(1.8);
+  border: 1px solid rgb(255 255 255 / 0.18);
+  box-shadow:
+    inset 1px 1px 0 rgb(255 255 255 / 0.22),
+    0 20px 50px rgb(0 0 0 / 0.45);
+}
+/* צל טקסט עדין: מבטיח קריאות גם כשמאחורי הזכוכית יש רקע בהיר (חולצה לבנה) */
+.menu-panel a {
+  text-shadow: 0 1px 5px rgb(0 0 0 / 0.55);
+}
+/* למי שהעדיף פחות שקיפות: רקע אטום ובלי בלר */
+@media (prefers-reduced-transparency: reduce) {
+  .menu-panel {
+    background: rgb(11 14 23 / 0.96);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .menu-panel a {
+    text-shadow: none;
+  }
+}
+
 .glass-btn {
   position: relative;
   display: inline-flex;

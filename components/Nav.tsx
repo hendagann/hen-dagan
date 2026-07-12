@@ -34,14 +34,14 @@ export default function Nav() {
   return (
     <header className="fixed top-4 inset-x-0 z-50 flex flex-col items-center px-4">
       <nav
-        className="glass glass-pill flex items-center gap-1 sm:gap-2 px-3 sm:px-5 py-2.5 text-sm max-w-full"
+        className="glass glass-pill flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2.5 text-sm max-w-full"
         aria-label="ניווט ראשי"
       >
-        <Link href="/" className="font-display font-bold text-base whitespace-nowrap ps-1 pe-2">
+        <Link href="/" className="font-display font-bold text-base whitespace-nowrap ps-1 pe-1 sm:pe-2">
           {nav.logo}
         </Link>
 
-        {/* דסקטופ: פריטי ניווט + CTA + EN בשורה */}
+        {/* דסקטופ: תפריט מלא פתוח בשורה */}
         <div className="hidden md:flex items-center gap-1">
           {nav.items.map((item) => (
             <Link
@@ -55,12 +55,26 @@ export default function Nav() {
             </Link>
           ))}
         </div>
+
+        {/* מובייל / חלון קטן: קיצור ל"עבודות" בלבד */}
+        <Link
+          href="/work"
+          className={`md:hidden px-2.5 py-1.5 rounded-full whitespace-nowrap transition-colors hover:bg-white/10 ${
+            pathname === "/work" ? "text-[var(--color-gold)]" : "text-[var(--color-paper)]"
+          }`}
+        >
+          עבודות
+        </Link>
+
+        {/* CTA: תמיד גלוי */}
         <Link
           href={nav.cta.href}
-          className="glass-btn glass-btn-gold !py-1.5 !px-4 text-sm whitespace-nowrap ms-1"
+          className="glass-btn glass-btn-gold !py-1.5 !px-3 sm:!px-4 text-sm whitespace-nowrap"
         >
           {nav.cta.label}
         </Link>
+
+        {/* דסקטופ: מתג שפה */}
         <Link
           href={nav.en.href}
           aria-label="English version"
@@ -69,14 +83,14 @@ export default function Nav() {
           {nav.en.label}
         </Link>
 
-        {/* מובייל: כפתור המבורגר */}
+        {/* מובייל / חלון קטן: כפתור תפריט */}
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-controls="mobile-menu"
           aria-label={open ? "סגירת תפריט" : "פתיחת תפריט"}
-          className="md:hidden inline-flex items-center justify-center w-9 h-9 rounded-full hover:bg-white/10 transition-colors ms-1"
+          className="md:hidden inline-flex items-center justify-center w-9 h-9 rounded-full hover:bg-white/10 transition-colors ms-0.5"
         >
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
             {open ? (
@@ -95,11 +109,11 @@ export default function Nav() {
         </button>
       </nav>
 
-      {/* מובייל: פאנל התפריט הנפתח */}
+      {/* פאנל התפריט (מובייל / חלון קטן). זכוכית מטושטשת עם קריאות מלאה */}
       {open && (
         <div
           id="mobile-menu"
-          className="md:hidden mt-2 glass rounded-2xl p-2 w-[min(20rem,92vw)] flex flex-col gap-0.5"
+          className="md:hidden glass menu-panel mt-2 rounded-2xl p-2 w-[min(20rem,92vw)] flex flex-col gap-0.5"
         >
           {nav.items.map((item) => (
             <Link
